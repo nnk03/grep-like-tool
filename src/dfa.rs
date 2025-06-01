@@ -124,11 +124,15 @@ mod tests {
         symbol_table.add_symbol('a');
         symbol_table.add_symbol('b');
         symbol_table.add_symbol('c');
+        symbol_table.add_symbol('d');
 
         let dfa = DFA::from_string("abc", &symbol_table);
 
         let result = dfa.run("abc");
         assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.add_symbol('a');
