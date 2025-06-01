@@ -5,11 +5,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    globals::DFAError,
+    globals::{DFAError, State},
     symbol_table::{Symbol, SymbolTable},
 };
-
-pub type State = usize;
 
 #[derive(Clone, Debug)]
 pub struct DFA {

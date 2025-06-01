@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+pub type State = usize;
+
 #[derive(Debug, Error)]
 pub enum DFAError {
     #[error("Invalid transition: {0}")]
