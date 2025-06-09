@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 //! This module contains the necessary functions for Symbol and SymbolTable
 
 use std::{
@@ -65,7 +64,7 @@ impl SymbolTable {
     }
 
     /// add symbol is for inserting characters other than EPSILON
-    pub fn add_symbol(&mut self, ch: char) {
+    pub fn add_character(&mut self, ch: char) {
         if self.symbol_to_number.contains_key(&Symbol::Character(ch)) {
             return;
         }
@@ -86,5 +85,29 @@ impl SymbolTable {
 
     pub fn symbols(&self) -> Keys<'_, Symbol, usize> {
         self.symbol_to_number.keys()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_epsilon_present() {
+        let st = SymbolTable::new();
+        assert!(st.symbol_to_number.contains_key(&Symbol::Epsilon));
+        assert_eq!(0, st.symbol_to_number[&Symbol::Epsilon]);
+    }
+
+    #[test]
+    fn test_adding_symbol() {
+        let mut st = SymbolTable::new();
+        st.add_character('c');
+
+        assert!(st.symbol_to_number.contains_key(&Symbol::Character('c')));
+        assert_eq!(st.symbol_to_number[&Symbol::Character('c')], 1);
+        assert_eq!(st.number_to_symbol[&1], Symbol::Character('c'));
+
+        assert_eq!(st.len(), 2);
     }
 }
