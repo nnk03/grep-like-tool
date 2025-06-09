@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 #[derive(Clone, Debug)]
-pub struct NTransitionFunction {}
+pub struct DTransitionFunction {}
 
 #[cfg(test)]
 mod tests {
