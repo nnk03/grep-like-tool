@@ -13,6 +13,12 @@ use crate::{
 pub struct DFA {
     num_states: usize,
     symbol_table: SymbolTable,
+    // set of states
+    states: HashSet<State>,
+    // state numbers start from this
+    begin_state_num: State,
+    // upto end_state_num
+    end_state_num: State,
     // DFA contains only a single start state
     start_state: State,
     // DFA can contain a set of final states
@@ -24,11 +30,20 @@ pub struct DFA {
 impl DFA {
     fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
         let num_states = s.len() + 2;
+        let mut states = HashSet::new();
+        let (begin_state_num, end_state_num) = (0, num_states - 1);
+
+        for state in begin_state_num..end_state_num + 1 {
+            states.insert(state);
+        }
 
         let mut dfa = DFA {
             num_states,
             // epsilon present by default in symbol table
             symbol_table: symbol_table.clone(),
+            states,
+            begin_state_num,
+            end_state_num,
             start_state: 0,
             final_states: HashSet::new(),
             // vector of size num_states
@@ -109,6 +124,20 @@ impl DFA {
         }
 
         Ok(self.final_states.contains(&current_state))
+    }
+
+    pub fn extend(&mut self, increment: usize) {
+        let mut dfa = self.clone();
+
+        for state in (self.begin_state_num..self.end_state_num + 1).rev() {
+            dfa.states.remove(&state);
+            dfa.states.insert(state + increment);
+
+            // if this state is present in final states, increment that too
+            if dfa.final_states.remove(&state) {
+                dfa.final_states.insert(state + increment);
+            }
+        }
     }
 }
 
