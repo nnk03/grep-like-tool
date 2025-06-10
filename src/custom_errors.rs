@@ -3,11 +3,11 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum DFAError {
     #[error("Invalid transition: {0}")]
-    InvalidTransition(String),
+    InvalidTransition(&'static str),
 
     #[error("Invalid state: {0}")]
-    InvalidState(String),
+    InvalidState(&'static str),
 
     #[error("Invalid symbol: {0}")]
-    InvalidSymbol(String),
+    InvalidSymbol(&'static str),
 }
