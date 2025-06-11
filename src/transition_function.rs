@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::ops::Index;
 
-use crate::custom_errors::DFAError;
+use crate::custom_errors::AutomatonError;
 use crate::d_transition_function;
 use crate::globals::State;
 use crate::n_transition_function;
@@ -26,7 +26,7 @@ pub trait BasicFunctionsForTransitions {
         state: &State,
         symbol: &Symbol,
         next_state: &State,
-    ) -> Result<(), DFAError>;
+    ) -> Result<(), AutomatonError>;
 
     fn extend(&mut self, increment: usize);
 }

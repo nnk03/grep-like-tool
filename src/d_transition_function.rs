@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    custom_errors::DFAError, globals::State, symbol_table::Symbol,
+    custom_errors::{AutomatonError, DFAError},
+    globals::State,
+    symbol_table::Symbol,
     transition_function::BasicFunctionsForTransitions,
 };
 
@@ -22,19 +24,19 @@ impl BasicFunctionsForTransitions for DTransitionFunction {
         state: &State,
         symbol: &Symbol,
         next_state: &State,
-    ) -> Result<(), crate::custom_errors::DFAError> {
+    ) -> Result<(), AutomatonError> {
         if *symbol == Symbol::Epsilon {
-            return Err(DFAError::InvalidTransition(
+            return Err(AutomatonError::DFAError(DFAError::InvalidTransition(
                 "Epsilon should not be present in DFA Transitions",
-            ));
+            )));
         }
 
         let entry = self.f.entry(*state).or_insert(HashMap::new());
 
         if entry.contains_key(symbol) {
-            return Err(DFAError::InvalidTransition(
+            return Err(AutomatonError::DFAError(DFAError::InvalidTransition(
                 "Adding more than one state for the same transition for DFA",
-            ));
+            )));
         }
 
         entry.insert(*symbol, *next_state);
@@ -49,16 +51,17 @@ impl BasicFunctionsForTransitions for DTransitionFunction {
         on_states.reverse();
 
         for &curr_state in on_states.iter() {
-            let mut new_transitions: HashMap<Symbol, State> = HashMap::new();
+            if let Some((state, symbol_state_map)) = self.f.remove_entry(&curr_state) {
+                let mut new_transitions: HashMap<Symbol, State> = HashMap::new();
 
-            // (curr_state, symbol) -> next_state
-            for (symbol, next_state) in self.f[&curr_state].iter() {
-                new_transitions.insert(*symbol, *next_state + increment);
+                // (state, symbol) -> next_state
+                for (symbol, next_state) in symbol_state_map.iter() {
+                    new_transitions.insert(*symbol, *next_state + increment);
+                }
+
+                // update the transitions
+                self.f.insert(state + increment, new_transitions);
             }
-
-            // update the transitions
-            self.f.insert(curr_state + increment, new_transitions);
-            self.f.remove_entry(&curr_state);
         }
     }
 }
