@@ -6,6 +6,7 @@ use std::collections::HashSet;
 
 use crate::{
     custom_errors::DFAError,
+    disjoint_set_union::DSU,
     globals::State,
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, DTransitionFunction},
@@ -30,7 +31,7 @@ pub struct DFA {
 }
 
 impl DFA {
-    fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
+    pub fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
         let num_states = s.len() + 2;
         let mut states = HashSet::new();
         let (begin_state_num, end_state_num) = (0, num_states - 1);
@@ -98,6 +99,20 @@ impl DFA {
             }
         }
 
+        for &symbol in symbol_table.symbols() {
+            match symbol {
+                Symbol::Epsilon => continue,
+                Symbol::Character(ch) => {
+                    dfa.transition_function
+                        .add_transition(&final_state, &Symbol::Character(ch), &reject_state)
+                        .unwrap_or_else(|err| panic!("{}", format!("{}", err.to_string())));
+                    dfa.transition_function
+                        .add_transition(&reject_state, &Symbol::Character(ch), &reject_state)
+                        .unwrap_or_else(|err| panic!("{}", format!("{}", err.to_string())));
+                }
+            }
+        }
+
         dfa
     }
 
@@ -143,6 +158,116 @@ impl DFA {
         self.start_state += increment;
 
         self.transition_function.extend(increment);
+    }
+
+    pub fn minimized_dfa(self) -> DFA {
+        let dfa = self;
+        let n = dfa.num_states;
+        let offset = dfa.begin_state_num;
+        let mut marked: Vec<Vec<bool>> = vec![vec![false; n]; n];
+
+        for first_state in dfa.begin_state_num..=dfa.end_state_num {
+            for second_state in first_state + 1..=dfa.end_state_num {
+                // first_state < second_state
+
+                if dfa.final_states.contains(&first_state)
+                    && !dfa.final_states.contains(&second_state)
+                {
+                    // first index always less than second index
+                    marked[first_state - offset][second_state - offset] = true;
+                } else if !dfa.final_states.contains(&first_state)
+                    && dfa.final_states.contains(&second_state)
+                {
+                    // first index always less than second index
+                    marked[first_state - offset][second_state - offset] = true;
+                }
+            }
+        }
+
+        loop {
+            let mut is_changed = false;
+
+            for first_state in dfa.begin_state_num..=dfa.end_state_num {
+                for second_state in first_state + 1..=dfa.end_state_num {
+                    if marked[first_state - offset][second_state - offset] {
+                        continue;
+                    }
+
+                    for symbol in dfa.symbol_table.symbols() {
+                        if *symbol == Symbol::Epsilon {
+                            // there will be no transition for epsilon symbol
+                            continue;
+                        }
+
+                        // if both have transition on the same symbol
+                        // and the pair (next_of_first_state, next_of_second_state) is marked
+                        // then mark this pair
+                        // since this is a DFA, it must have transition on same symbol
+                        let (next_of_first_state, next_of_second_state) = (
+                            dfa.transition_function[(&first_state, symbol)],
+                            dfa.transition_function[(&second_state, symbol)],
+                        );
+
+                        if marked[next_of_first_state - offset][next_of_second_state - offset]
+                            && !marked[first_state - offset][second_state - offset]
+                        {
+                            marked[first_state - offset][second_state - offset] = true;
+                            is_changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !is_changed {
+                break;
+            }
+        }
+
+        let mut dsu = DSU::new(dfa.num_states);
+        for first_state in dfa.begin_state_num..=dfa.end_state_num {
+            for second_state in first_state + 1..=dfa.end_state_num {
+                if !marked[first_state - offset][second_state - offset] {
+                    // then this pair is indistinguishable, i.e it can be merged
+                    dsu.union(first_state - offset, second_state - offset);
+                }
+            }
+        }
+
+        let state_representative_map = dsu.state_representative_map(offset);
+
+        let minimum_dfa_len = state_representative_map.len();
+        let mut new_dfa = DFA {
+            num_states: state_representative_map.len(),
+            symbol_table: dfa.symbol_table.clone(),
+            states: HashSet::from_iter(dfa.begin_state_num..dfa.begin_state_num + minimum_dfa_len),
+            begin_state_num: dfa.begin_state_num,
+            end_state_num: dfa.begin_state_num + minimum_dfa_len - 1,
+            start_state: state_representative_map[&dfa.begin_state_num],
+            final_states: HashSet::from_iter(
+                dfa.final_states
+                    .iter()
+                    .map(|&state| state_representative_map[&state]),
+            ),
+            transition_function: DTransitionFunction::new(),
+        };
+
+        for (curr_state, symbol_to_next_state_map) in dfa.transition_function.f {
+            if state_representative_map[&curr_state] != curr_state {
+                // this is not present in minimum dfa
+                continue;
+            }
+
+            for (symbol, next_state) in symbol_to_next_state_map {
+                // curr_state is present in minimum dfa
+                new_dfa
+                    .transition_function
+                    .add_transition(&curr_state, &symbol, &state_representative_map[&next_state])
+                    .unwrap_or_else(|err| panic!("{}", format!("{}", err.to_string())));
+            }
+        }
+
+        new_dfa
     }
 }
 
@@ -221,5 +346,54 @@ mod tests {
         for state in 2..=6 {
             assert!(dfa.states.contains(&state));
         }
+    }
+
+    #[test]
+    fn check_minimization() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let dfa = DFA::from_string("abc", &symbol_table);
+
+        let dfa = dfa.minimized_dfa();
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_minimization_single_alphabet() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        let dfa = DFA::from_string("aa", &symbol_table);
+
+        let dfa = dfa.minimized_dfa();
+
+        let result = dfa.run("aa");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_minimization_empty_string() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+
+        let dfa = DFA::from_string("", &symbol_table);
+        let dfa = dfa.minimized_dfa();
+
+        let result = dfa.run("");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
     }
 }

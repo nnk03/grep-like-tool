@@ -3,6 +3,7 @@
 mod custom_errors;
 mod d_transition_function;
 mod dfa;
+mod disjoint_set_union;
 mod globals;
 mod n_transition_function;
 mod symbol_table;
