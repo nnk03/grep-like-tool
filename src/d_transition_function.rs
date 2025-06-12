@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Index};
 
 use crate::{
     custom_errors::{AutomatonError, DFAError},
@@ -11,7 +11,27 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct DTransitionFunction {
-    f: HashMap<State, HashMap<Symbol, State>>,
+    pub f: HashMap<State, HashMap<Symbol, State>>,
+}
+
+impl DTransitionFunction {
+    /// to check if a transition from current state is present
+    pub fn contains_state(&self, state: &State) -> bool {
+        self.f.contains_key(state)
+    }
+
+    /// to check if a transition is valid
+    pub fn contains_transition(&self, state: &State, symbol: &Symbol) -> bool {
+        self.contains_state(state) && self.f[state].contains_key(symbol)
+    }
+}
+
+impl Index<(&State, &Symbol)> for DTransitionFunction {
+    type Output = State;
+
+    fn index(&self, index: (&State, &Symbol)) -> &Self::Output {
+        &self.f[index.0][index.1]
+    }
 }
 
 impl BasicFunctionsForTransitions for DTransitionFunction {
