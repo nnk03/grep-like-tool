@@ -31,7 +31,7 @@ pub struct DFA {
 }
 
 impl DFA {
-    fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
+    pub fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
         let num_states = s.len() + 2;
         let mut states = HashSet::new();
         let (begin_state_num, end_state_num) = (0, num_states - 1);
@@ -99,6 +99,20 @@ impl DFA {
             }
         }
 
+        for &symbol in symbol_table.symbols() {
+            match symbol {
+                Symbol::Epsilon => continue,
+                Symbol::Character(ch) => {
+                    dfa.transition_function
+                        .add_transition(&final_state, &Symbol::Character(ch), &reject_state)
+                        .unwrap_or_else(|err| panic!("{}", format!("{}", err.to_string())));
+                    dfa.transition_function
+                        .add_transition(&reject_state, &Symbol::Character(ch), &reject_state)
+                        .unwrap_or_else(|err| panic!("{}", format!("{}", err.to_string())));
+                }
+            }
+        }
+
         dfa
     }
 
@@ -153,68 +167,66 @@ impl DFA {
         let mut marked: Vec<Vec<bool>> = vec![vec![false; n]; n];
 
         for first_state in dfa.begin_state_num..=dfa.end_state_num {
-            for second_state in dfa.begin_state_num..=dfa.end_state_num {
-                if first_state == second_state {
-                    continue;
-                }
+            for second_state in first_state + 1..=dfa.end_state_num {
+                // first_state < second_state
 
                 if dfa.final_states.contains(&first_state)
                     && !dfa.final_states.contains(&second_state)
                 {
+                    // first index always less than second index
                     marked[first_state - offset][second_state - offset] = true;
-                    marked[second_state - offset][first_state - offset] = true;
+                } else if !dfa.final_states.contains(&first_state)
+                    && dfa.final_states.contains(&second_state)
+                {
+                    // first index always less than second index
+                    marked[first_state - offset][second_state - offset] = true;
                 }
             }
         }
 
-        let mut is_changed = true;
-
-        while is_changed {
-            is_changed = false;
+        loop {
+            let mut is_changed = false;
 
             for first_state in dfa.begin_state_num..=dfa.end_state_num {
-                for second_state in dfa.begin_state_num..=dfa.end_state_num {
+                for second_state in first_state + 1..=dfa.end_state_num {
                     if marked[first_state - offset][second_state - offset] {
                         continue;
                     }
 
                     for symbol in dfa.symbol_table.symbols() {
-                        let does_both_have_transition_on_symbol = dfa
-                            .transition_function
-                            .contains_transition(&first_state, symbol)
-                            && dfa
-                                .transition_function
-                                .contains_transition(&second_state, symbol);
+                        if *symbol == Symbol::Epsilon {
+                            // there will be no transition for epsilon symbol
+                            continue;
+                        }
 
                         // if both have transition on the same symbol
                         // and the pair (next_of_first_state, next_of_second_state) is marked
                         // then mark this pair
-                        if does_both_have_transition_on_symbol {
-                            let (next_of_first_state, next_of_second_state) = (
-                                dfa.transition_function[(&first_state, symbol)],
-                                dfa.transition_function[(&second_state, symbol)],
-                            );
+                        // since this is a DFA, it must have transition on same symbol
+                        let (next_of_first_state, next_of_second_state) = (
+                            dfa.transition_function[(&first_state, symbol)],
+                            dfa.transition_function[(&second_state, symbol)],
+                        );
 
-                            if marked[next_of_first_state - offset][next_of_second_state - offset]
-                                && !marked[first_state - offset][second_state - offset]
-                            {
-                                marked[first_state - offset][second_state - offset] = true;
-                                marked[second_state - offset][first_state - offset] = true;
-                                is_changed = true;
-                            }
+                        if marked[next_of_first_state - offset][next_of_second_state - offset]
+                            && !marked[first_state - offset][second_state - offset]
+                        {
+                            marked[first_state - offset][second_state - offset] = true;
+                            is_changed = true;
+                            break;
                         }
                     }
                 }
+            }
+
+            if !is_changed {
+                break;
             }
         }
 
         let mut dsu = DSU::new(dfa.num_states);
         for first_state in dfa.begin_state_num..=dfa.end_state_num {
-            for second_state in dfa.begin_state_num..=dfa.end_state_num {
-                if first_state == second_state {
-                    continue;
-                }
-
+            for second_state in first_state + 1..=dfa.end_state_num {
                 if !marked[first_state - offset][second_state - offset] {
                     // then this pair is indistinguishable, i.e it can be merged
                     dsu.union(first_state - offset, second_state - offset);
@@ -223,6 +235,7 @@ impl DFA {
         }
 
         let state_representative_map = dsu.state_representative_map(offset);
+
         let minimum_dfa_len = state_representative_map.len();
         let mut new_dfa = DFA {
             num_states: state_representative_map.len(),
@@ -344,6 +357,7 @@ mod tests {
         symbol_table.add_character('d');
 
         let dfa = DFA::from_string("abc", &symbol_table);
+
         let dfa = dfa.minimized_dfa();
 
         let result = dfa.run("abc");
