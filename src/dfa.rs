@@ -2,13 +2,13 @@
 //! This module contains the necessary functions of DFA
 //!
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::{
     custom_errors::DFAError,
     globals::State,
     symbol_table::{Symbol, SymbolTable},
-    transition_function::{BasicFunctionsForTransitions, DTransitionFunction, TransitionFunction},
+    transition_function::{BasicFunctionsForTransitions, DTransitionFunction},
 };
 
 #[derive(Clone, Debug)]
@@ -80,7 +80,7 @@ impl DFA {
 
         dfa.final_states.insert(final_state);
 
-        for state_num in dfa.begin_state_num..=dfa.end_state_num {
+        for state_num in 0..s_bytes.len() {
             for &symbol in symbol_table.symbols() {
                 match symbol {
                     Symbol::Epsilon => continue,
@@ -99,5 +99,127 @@ impl DFA {
         }
 
         dfa
+    }
+
+    pub fn run(&self, s: &str) -> Result<bool, DFAError> {
+        let mut current_state = self.start_state;
+
+        for symbol in s.as_bytes().iter().map(|&ch| Symbol::Character(ch as char)) {
+            if !self.transition_function.contains_state(&current_state) {
+                return Err(DFAError::InvalidState("{current_state}".to_string()));
+            }
+
+            if !self
+                .transition_function
+                .contains_transition(&current_state, &symbol)
+            {
+                return Err(DFAError::InvalidTransition(format!(
+                    "Invalid Transition from {} on symbol {:?}",
+                    current_state, symbol
+                )));
+            }
+
+            // (current_state, symbol) -> next_state which becomes the current state
+            current_state = self.transition_function[(&current_state, &symbol)];
+        }
+
+        Ok(self.final_states.contains(&current_state))
+    }
+
+    pub fn extend(&mut self, increment: usize) {
+        for state in (self.begin_state_num..self.end_state_num + 1).rev() {
+            if self.states.remove(&state) {
+                self.states.insert(state + increment);
+            }
+
+            // if this state is present in final states, increment that too
+            if self.final_states.remove(&state) {
+                self.final_states.insert(state + increment);
+            }
+        }
+
+        self.begin_state_num += increment;
+        self.end_state_num += increment;
+        self.start_state += increment;
+
+        self.transition_function.extend(increment);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_acceptance_of_dfa_constructed_from_string() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let dfa = DFA::from_string("abc", &symbol_table);
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_acceptance_of_dfa_for_empty_string() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let dfa = DFA::from_string("", &symbol_table);
+
+        let result = dfa.run("");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_invalid_transition() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let dfa = DFA::from_string("abc", &symbol_table);
+
+        let result = dfa.run("abc");
+        assert!(result.is_err_and(|res| res.to_string().contains("Invalid Transition")));
+    }
+
+    #[test]
+    fn check_extending() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let mut dfa = DFA::from_string("abc", &symbol_table);
+
+        dfa.extend(2);
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+
+        for state in 0..=1 {
+            assert!(!dfa.states.contains(&state));
+        }
+
+        for state in 2..=6 {
+            assert!(dfa.states.contains(&state));
+        }
     }
 }

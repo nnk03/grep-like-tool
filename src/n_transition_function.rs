@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug)]
 pub struct NTransitionFunction {
-    f: HashMap<State, HashMap<Symbol, HashSet<State>>>,
+    pub f: HashMap<State, HashMap<Symbol, HashSet<State>>>,
 }
 
 impl BasicFunctionsForTransitions for NTransitionFunction {
