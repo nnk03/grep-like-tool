@@ -363,7 +363,37 @@ mod tests {
         let result = dfa.run("abc");
         assert!(result.is_ok_and(|res| res));
 
-        // let result = dfa.run("abd");
-        // assert!(result.is_ok_and(|res| !res));
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_minimization_single_alphabet() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        let dfa = DFA::from_string("aa", &symbol_table);
+
+        let dfa = dfa.minimized_dfa();
+
+        let result = dfa.run("aa");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_minimization_empty_string() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+
+        let dfa = DFA::from_string("", &symbol_table);
+        let dfa = dfa.minimized_dfa();
+
+        let result = dfa.run("");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
     }
 }
