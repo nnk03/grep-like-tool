@@ -57,7 +57,9 @@ impl BasicFunctionsForTransitions for NTransitionFunction {
         let state_symbol_transitions = state_transitions.entry(*symbol).or_insert(HashSet::new());
 
         if state_symbol_transitions.contains(next_state) {
-            return Err(AutomatonError::NFAError(NFAError::ExistingTransition("")));
+            return Err(AutomatonError::NFAError(NFAError::ExistingTransition(
+                "".to_string(),
+            )));
         }
 
         state_symbol_transitions.insert(*next_state);

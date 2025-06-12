@@ -27,7 +27,7 @@ impl BasicFunctionsForTransitions for DTransitionFunction {
     ) -> Result<(), AutomatonError> {
         if *symbol == Symbol::Epsilon {
             return Err(AutomatonError::DFAError(DFAError::InvalidTransition(
-                "Epsilon should not be present in DFA Transitions",
+                "Epsilon should not be present in DFA Transitions".to_string(),
             )));
         }
 
@@ -35,7 +35,7 @@ impl BasicFunctionsForTransitions for DTransitionFunction {
 
         if entry.contains_key(symbol) {
             return Err(AutomatonError::DFAError(DFAError::InvalidTransition(
-                "Adding more than one state for the same transition for DFA",
+                "Adding more than one state for the same transition for DFA".to_string(),
             )));
         }
 

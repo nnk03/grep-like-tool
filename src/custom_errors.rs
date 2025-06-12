@@ -3,19 +3,19 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum DFAError {
     #[error("Invalid transition: {0}")]
-    InvalidTransition(&'static str),
+    InvalidTransition(String),
 
     #[error("Invalid state: {0}")]
-    InvalidState(&'static str),
+    InvalidState(String),
 
     #[error("Invalid symbol: {0}")]
-    InvalidSymbol(&'static str),
+    InvalidSymbol(String),
 }
 
 #[derive(Debug, Error)]
 pub enum NFAError {
     #[error("Already Existing Transition {0}")]
-    ExistingTransition(&'static str),
+    ExistingTransition(String),
 }
 
 #[derive(Debug, Error)]
