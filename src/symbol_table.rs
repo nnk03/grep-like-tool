@@ -63,19 +63,26 @@ impl SymbolTable {
         symbol_table
     }
 
-    /// add symbol is for inserting characters other than EPSILON
-    pub fn add_character(&mut self, ch: char) {
-        if self.symbol_to_number.contains_key(&Symbol::Character(ch)) {
+    /// add_symbol is for adding symbol
+    pub fn add_symbol(&mut self, symbol: Symbol) {
+        if symbol == Symbol::Epsilon {
+            return;
+        }
+
+        if self.symbol_to_number.contains_key(&symbol) {
             return;
         }
 
         // start inserting with 1
-        self.symbol_to_number
-            .insert(Symbol::Character(ch), self.current_number);
-        self.number_to_symbol
-            .insert(self.current_number, Symbol::Character(ch));
+        self.symbol_to_number.insert(symbol, self.current_number);
+        self.number_to_symbol.insert(self.current_number, symbol);
 
         self.current_number += 1;
+    }
+
+    /// add character is for inserting characters other than EPSILON
+    pub fn add_character(&mut self, ch: char) {
+        self.add_symbol(Symbol::Character(ch));
     }
 
     /// returns the number of symbols present
