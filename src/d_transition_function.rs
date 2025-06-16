@@ -133,7 +133,6 @@ mod tests {
             .unwrap_or_else(|err| panic!("Error in adding transition : {}", err.to_string()));
 
         dt.extend(2);
-        println!("{:#?}", dt);
         // (2, 'a') -> 3
         assert!(!dt.f.contains_key(&0));
         assert!(dt.f.contains_key(&2));
