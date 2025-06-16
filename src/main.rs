@@ -6,6 +6,7 @@ mod dfa;
 mod disjoint_set_union;
 mod globals;
 mod n_transition_function;
+mod nfa;
 mod symbol_table;
 mod transition_function;
 // mod finite_automaton;
