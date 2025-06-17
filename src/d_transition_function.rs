@@ -21,7 +21,7 @@ impl DTransitionFunction {
     }
 
     /// to check if a transition is valid
-    pub fn contains_transition(&self, state: &State, symbol: &Symbol) -> bool {
+    pub fn is_valid_transition(&self, state: &State, symbol: &Symbol) -> bool {
         self.contains_state(state) && self.f[state].contains_key(symbol)
     }
 }

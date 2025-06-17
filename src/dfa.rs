@@ -126,7 +126,7 @@ impl DFA {
 
             if !self
                 .transition_function
-                .contains_transition(&current_state, &symbol)
+                .is_valid_transition(&current_state, &symbol)
             {
                 return Err(DFAError::InvalidTransition(format!(
                     "Invalid Transition from {} on symbol {:?}",
@@ -141,6 +141,7 @@ impl DFA {
         Ok(self.final_states.contains(&current_state))
     }
 
+    /// extending by `increment`
     pub fn extend(&mut self, increment: usize) {
         for state in (self.begin_state_num..self.end_state_num + 1).rev() {
             if self.states.remove(&state) {
