@@ -2,7 +2,7 @@
 //! This module contains the necessary functions of DFA
 //!
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
     custom_errors::DFAError,
@@ -31,6 +31,7 @@ pub struct DFA {
 }
 
 impl DFA {
+    /// create a DFA from a string
     pub fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
         let num_states = s.len() + 2;
         let mut states = HashSet::new();
@@ -162,7 +163,11 @@ impl DFA {
     }
 
     pub fn minimized_dfa(self) -> DFA {
-        let dfa = self;
+        let mut dfa = self;
+
+        // cleanup dfa before minimizing
+        dfa.cleanup();
+
         let n = dfa.num_states;
         let offset = dfa.begin_state_num;
         let mut marked: Vec<Vec<bool>> = vec![vec![false; n]; n];
@@ -209,12 +214,17 @@ impl DFA {
                             dfa.transition_function[(&second_state, symbol)],
                         );
 
+                        // since we are marking with the convention first_index < second_index
+                        let (next_of_first_state, next_of_second_state) = (
+                            next_of_first_state.min(next_of_second_state),
+                            next_of_first_state.max(next_of_second_state),
+                        );
+
                         if marked[next_of_first_state - offset][next_of_second_state - offset]
                             && !marked[first_state - offset][second_state - offset]
                         {
                             marked[first_state - offset][second_state - offset] = true;
                             is_changed = true;
-                            break;
                         }
                     }
                 }
@@ -269,6 +279,103 @@ impl DFA {
         }
 
         new_dfa
+    }
+
+    /// cleanup the dfa by removing inaccessible states and ordering the states
+    pub fn cleanup(&mut self) {
+        let mut q: VecDeque<State> = VecDeque::new();
+        q.push_back(0);
+        let mut visited: HashSet<State> = HashSet::new();
+
+        // find the reachable states using BFS
+        while let Some(state) = q.pop_front() {
+            if visited.contains(&state) {
+                continue;
+            }
+
+            visited.insert(state);
+
+            for &symbol in self.symbol_table.symbols() {
+                if let Some(next_state) = self.get_transition(&state, &symbol) {
+                    if !visited.contains(&next_state) {
+                        q.push_back(next_state);
+                    }
+                }
+            }
+        }
+
+        let mut existing_state_to_new_state_map: HashMap<State, State> = HashMap::new();
+
+        existing_state_to_new_state_map.insert(self.start_state, 0);
+
+        let mut curr_state_num = 1;
+        for &state in visited.iter() {
+            if state == self.start_state {
+                continue;
+            }
+
+            existing_state_to_new_state_map.insert(state, curr_state_num);
+            curr_state_num += 1;
+        }
+
+        let mut transition_function = DTransitionFunction::new();
+
+        for (&state, symbol_to_next_state) in self.transition_function.f.iter() {
+            // only perform the action for reachable states
+            if !existing_state_to_new_state_map.contains_key(&state) {
+                continue;
+            }
+
+            for (&symbol, &next_state) in symbol_to_next_state.iter() {
+                // only perform the action for reachable states
+                if !existing_state_to_new_state_map.contains_key(&next_state) {
+                    continue;
+                }
+
+                transition_function
+                    .add_transition(
+                        &existing_state_to_new_state_map[&state],
+                        &symbol,
+                        &existing_state_to_new_state_map[&next_state],
+                    )
+                    .unwrap_or_else(|err| {
+                        panic!("Error in adding transition : {}", err.to_string())
+                    });
+            }
+        }
+
+        // symbol table remains unchanged
+        let num_states = visited.len();
+        self.num_states = num_states;
+        self.states = HashSet::from_iter((0..num_states).into_iter());
+
+        self.begin_state_num = 0;
+        self.end_state_num = num_states - 1;
+
+        self.transition_function.f.clear();
+        self.transition_function = transition_function;
+
+        self.start_state = 0;
+        self.final_states = self
+            .final_states
+            .iter()
+            .filter_map(|state| {
+                if !existing_state_to_new_state_map.contains_key(state) {
+                    None
+                } else {
+                    Some(existing_state_to_new_state_map[state])
+                }
+            })
+            .collect();
+    }
+
+    /// get transition if it is valid
+    pub fn get_transition(&self, state: &State, symbol: &Symbol) -> Option<State> {
+        if self.transition_function.is_valid_transition(state, symbol) {
+            return Some(self.transition_function[(state, symbol)]);
+        }
+
+        None
     }
 }
 

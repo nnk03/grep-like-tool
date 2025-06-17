@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
+    dfa::DFA,
     globals::State,
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, NTransitionFunction},
@@ -149,6 +150,75 @@ impl NFA {
         self.transition_function
             .contains_transition(state, symbol, next_state)
     }
+
+    /// to find out epsilon closure of a state
+    pub fn epsilon_closure(&self, state: &State) -> HashSet<State> {
+        let mut visited: HashSet<State> = HashSet::new();
+        let mut ans = HashSet::new();
+        ans.insert(*state);
+
+        let mut q: VecDeque<State> = VecDeque::new();
+        q.push_back(*state);
+
+        while let Some(state) = q.pop_front() {
+            if visited.contains(&state) {
+                continue;
+            }
+
+            visited.insert(state);
+
+            if let Some(next_states_on_epsilon) = self
+                .transition_function
+                .get_transition(&state, &Symbol::Epsilon)
+            {
+                for &next_state in next_states_on_epsilon.iter() {
+                    if !visited.contains(&next_state) {
+                        ans.insert(next_state);
+                        q.push_back(next_state);
+                    }
+                }
+            }
+        }
+
+        ans
+    }
+
+    /// to get the subsets of a collection
+    fn powerset<T>(s: &[T]) -> Vec<Vec<T>>
+    where
+        T: Clone,
+    {
+        (0..2usize.pow(s.len() as u32))
+            .map(|i| {
+                s.iter()
+                    .enumerate()
+                    .filter(|&(t, _)| ((i >> t) & 1) == 1)
+                    .map(|(_, element)| element.clone())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// converting DFA to NFA
+    pub fn convert_to_dfa(&self) -> DFA {
+        let mut dfa = DFA::from_string("", &self.symbol_table.clone());
+        let nfa_states: Vec<_> = self.states.iter().map(|&state| state).collect();
+
+        let mut curr_state_num = 0;
+        let mut subset_to_num_map: HashMap<Vec<State>, State> = HashMap::new();
+        let mut num_to_subset_map: HashMap<State, Vec<State>> = HashMap::new();
+
+        for subset in NFA::powerset(&nfa_states) {
+            subset_to_num_map.insert(subset.clone(), curr_state_num);
+            num_to_subset_map.insert(curr_state_num, subset);
+
+            curr_state_num += 1;
+        }
+        // cleanup the dfa by removing unreachable states and numbering from 0..
+        dfa.cleanup();
+
+        dfa
+    }
 }
 
 #[cfg(test)]
@@ -191,5 +261,26 @@ mod tests {
         assert!(nfa_union.contains_transition(&3, &b, &4));
         assert!(nfa_union.contains_transition(&2, &epsilon, &5));
         assert!(nfa_union.contains_transition(&4, &epsilon, &5));
+    }
+
+    #[test]
+    fn check_epsilon_closure() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+
+        let nfa1 = NFA::from_symbol(&a, &symbol_table);
+        let nfa2 = NFA::from_symbol(&b, &symbol_table);
+
+        let nfa_union = nfa1.union(nfa2);
+        let epsilon_closure_check = nfa_union.epsilon_closure(&0);
+
+        assert!(epsilon_closure_check.len() == 3);
+        assert!(epsilon_closure_check.contains(&0));
+        assert!(epsilon_closure_check.contains(&1));
+        assert!(epsilon_closure_check.contains(&3));
     }
 }

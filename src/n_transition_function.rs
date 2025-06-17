@@ -93,6 +93,14 @@ impl NTransitionFunction {
     pub fn contains_transition(&self, state: &State, symbol: &Symbol, next_state: &State) -> bool {
         self.is_valid_transition(state, symbol) && self.f[state][symbol].contains(next_state)
     }
+
+    /// returns the set of next_states if exists
+    pub fn get_transition(&self, state: &State, symbol: &Symbol) -> Option<&HashSet<State>> {
+        if self.is_valid_transition(state, symbol) {
+            return Some(&self.f[state][symbol]);
+        }
+        None
+    }
 }
 
 #[cfg(test)]
