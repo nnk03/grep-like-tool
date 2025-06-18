@@ -609,4 +609,86 @@ mod tests {
         let result = dfa.run("abcabc");
         assert!(result.is_ok_and(|res| !res));
     }
+
+    #[test]
+    fn check_intersection() {
+        // check for (a + b)*c intersection abc
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+        let c = Symbol::Character('c');
+
+        let nfa_a = NFA::from_symbol(&a, &symbol_table);
+        let nfa_b = NFA::from_symbol(&b, &symbol_table);
+        let nfa_c = NFA::from_symbol(&c, &symbol_table);
+
+        let nfa_a_plus_b = nfa_a.union(nfa_b);
+        let nfa_a_plus_b_kleene_star = nfa_a_plus_b.kleene_star();
+
+        let nfa = nfa_a_plus_b_kleene_star.concat(nfa_c);
+
+        let dfa1 = DFA::convert_to_dfa(nfa);
+        let dfa2 = DFA::from_string("abc", &symbol_table);
+        let dfa = dfa1.intersection(dfa2);
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abbaabc");
+        assert!(result.is_ok_and(|res| !res));
+
+        let result = dfa.run("abcabc");
+        assert!(result.is_ok_and(|res| !res));
+
+        // now checking for (a + b)*c intersection b*c
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+        let c = Symbol::Character('c');
+
+        let nfa_a = NFA::from_symbol(&a, &symbol_table);
+        let nfa_b = NFA::from_symbol(&b, &symbol_table);
+        let nfa_c = NFA::from_symbol(&c, &symbol_table);
+
+        let nfa_a_plus_b = nfa_a.union(nfa_b.clone());
+        let nfa_a_plus_b_kleene_star = nfa_a_plus_b.kleene_star();
+
+        let nfa1 = nfa_a_plus_b_kleene_star.concat(nfa_c.clone());
+
+        let nfa_b_kleene_star = nfa_b.kleene_star();
+        let nfa2 = nfa_b_kleene_star.concat(nfa_c);
+
+        let dfa1 = DFA::convert_to_dfa(nfa1);
+        let dfa2 = DFA::convert_to_dfa(nfa2);
+
+        // this should accept b*c
+        let dfa = dfa1.intersection(dfa2);
+        let result = dfa.run("bc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| !res));
+
+        let mut check_string = String::from("c");
+        let result = dfa.run(&check_string);
+        assert!(result.is_ok_and(|res| res));
+
+        // this for loop checks the acceptance of the strings bc, bbc, bbbc,....
+        for _ in 0..100 {
+            check_string.pop();
+            check_string.push('b');
+            check_string.push('c');
+
+            let result = dfa.run(&check_string);
+            assert!(result.is_ok_and(|res| res));
+        }
+    }
 }
