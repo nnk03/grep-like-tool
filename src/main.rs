@@ -6,6 +6,7 @@ mod dfa;
 mod disjoint_set_union;
 mod n_transition_function;
 mod nfa;
+mod parsing;
 mod state;
 mod symbol_table;
 mod transition_function;
