@@ -48,7 +48,7 @@ impl DFA {
     pub fn start_state(&self) -> State {
         self.start_state
     }
-    pub fn final_state(&self) -> &HashSet<State> {
+    pub fn final_states(&self) -> &HashSet<State> {
         &self.final_states
     }
     pub fn states(&self) -> &HashSet<State> {
@@ -517,6 +517,22 @@ impl DFA {
     }
 }
 
+impl DFA {
+    /// function for complement of a DFAs
+    pub fn complement(&self) -> DFA {
+        let mut dfa = self.clone();
+        dfa.final_states.clear();
+
+        for state in self.states.iter() {
+            if !self.final_states.contains(state) {
+                dfa.final_states.insert(*state);
+            }
+        }
+
+        dfa
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -637,6 +653,24 @@ mod tests {
         let dfa = dfa.minimized_dfa();
 
         let result = dfa.run("");
+        assert!(result.is_ok_and(|res| res));
+    }
+
+    #[test]
+    fn check_complementation_of_dfa() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let dfa = DFA::from_string("abc", &symbol_table);
+        let dfa = dfa.complement();
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| !res));
+
+        let result = dfa.run("abd");
         assert!(result.is_ok_and(|res| res));
     }
 }
