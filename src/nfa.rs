@@ -558,7 +558,6 @@ mod tests {
         let nfa_kleene = nfa.kleene_star();
 
         let dfa = DFA::convert_to_dfa(nfa_kleene);
-        let dfa = dfa.minimized_dfa();
 
         let mut check_string = String::new();
 
@@ -600,7 +599,6 @@ mod tests {
         let nfa = nfa_a_plus_b_kleene_star.concat(nfa_c);
 
         let dfa = DFA::convert_to_dfa(nfa);
-        let dfa = dfa.minimized_dfa();
 
         let result = dfa.run("abc");
         assert!(result.is_ok_and(|res| res));
