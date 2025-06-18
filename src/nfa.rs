@@ -206,7 +206,7 @@ impl NFA {
             }
         }
 
-        for &final_state in dfa.final_state().iter() {
+        for &final_state in dfa.final_states().iter() {
             let _ = nfa.transition_function.add_transition(
                 &final_state,
                 &Symbol::Epsilon,
