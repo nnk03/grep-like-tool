@@ -31,6 +31,31 @@ pub struct DFA {
     transition_function: DTransitionFunction,
 }
 
+/// getters
+impl DFA {
+    pub fn num_states(&self) -> usize {
+        self.num_states
+    }
+    pub fn symbol_table(&self) -> &SymbolTable {
+        &self.symbol_table
+    }
+    pub fn begin_state_num(&self) -> State {
+        self.begin_state_num
+    }
+    pub fn end_state_num(&self) -> State {
+        self.end_state_num
+    }
+    pub fn start_state(&self) -> State {
+        self.start_state
+    }
+    pub fn final_state(&self) -> &HashSet<State> {
+        &self.final_states
+    }
+    pub fn states(&self) -> &HashSet<State> {
+        &self.states
+    }
+}
+
 impl DFA {
     /// create a DFA from a string
     pub fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
