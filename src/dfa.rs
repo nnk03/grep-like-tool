@@ -464,6 +464,13 @@ impl DFA {
             let curr_state_number = get_state_equivalent_number(curr_set_of_states.clone());
             dfa.states.insert(curr_state_number);
 
+            // if the set of states contains the accept state of nfa
+            // it means that there exists some path in the NFA that reaches the final state
+            // hence add this as accept state of dfa
+            if curr_set_of_states.states().contains(&nfa.final_state()) {
+                dfa.final_states.insert(curr_state_number);
+            }
+
             for &symbol in dfa.symbol_table.symbols() {
                 if symbol == Symbol::Epsilon {
                     continue;
@@ -479,17 +486,8 @@ impl DFA {
                     }
                 }
 
-                let mut is_final_state = false;
-
                 let next_states_on_this_symbol =
                     nfa.epsilon_closure_of_set_of_states(&next_states_on_this_symbol);
-
-                for &state in next_states_on_this_symbol.iter() {
-                    if state == nfa.final_state() {
-                        is_final_state = true;
-                        break;
-                    }
-                }
 
                 let next_states_on_this_symbol = StateSet::new(next_states_on_this_symbol);
 
@@ -501,9 +499,6 @@ impl DFA {
                     &symbol,
                     &next_state_number,
                 );
-                if is_final_state {
-                    dfa.final_states.insert(next_state_number);
-                }
 
                 if !visited.contains(&next_state_number) {
                     q.push_back(next_states_on_this_symbol);
