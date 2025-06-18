@@ -105,6 +105,7 @@ impl NFA {
         self.transition_function.extend(increment);
     }
 
+    /// returns NFA accepting union of 2 NFAs
     pub fn union(mut self, mut other: NFA) -> NFA {
         if self.symbol_table != other.symbol_table {
             panic!("Symbol table of 2 NFAs are not the same");
