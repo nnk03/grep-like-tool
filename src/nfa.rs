@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
-    globals::State,
+    state::{State, StateSet},
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, NTransitionFunction},
 };
@@ -25,6 +25,27 @@ pub struct NFA {
 }
 
 impl NFA {
+    /// getters
+    pub fn num_states(&self) -> usize {
+        self.num_states
+    }
+    pub fn symbol_table(&self) -> &SymbolTable {
+        &self.symbol_table
+    }
+    pub fn states(&self) -> &HashSet<State> {
+        &self.states
+    }
+    pub fn start_state(&self) -> State {
+        self.start_state
+    }
+    pub fn final_state(&self) -> State {
+        self.final_state
+    }
+
+    pub fn get_transition(&self, state: &State, symbol: &Symbol) -> Option<&HashSet<State>> {
+        self.transition_function.get_transition(state, symbol)
+    }
+
     /// creates an NFA which accepts a single symbol
     pub fn from_symbol(symbol: &Symbol, symbol_table: &SymbolTable) -> NFA {
         if *symbol == Symbol::Epsilon {
@@ -149,10 +170,80 @@ impl NFA {
         self.transition_function
             .contains_transition(state, symbol, next_state)
     }
+
+    /// to find out epsilon closure of a state
+    pub fn epsilon_closure(&self, state: &State) -> HashSet<State> {
+        let mut visited: HashSet<State> = HashSet::new();
+        let mut ans = HashSet::new();
+        ans.insert(*state);
+
+        let mut q: VecDeque<State> = VecDeque::new();
+        q.push_back(*state);
+
+        while let Some(state) = q.pop_front() {
+            if visited.contains(&state) {
+                continue;
+            }
+
+            visited.insert(state);
+
+            if let Some(next_states_on_epsilon) = self
+                .transition_function
+                .get_transition(&state, &Symbol::Epsilon)
+            {
+                for &next_state in next_states_on_epsilon.iter() {
+                    if !visited.contains(&next_state) {
+                        ans.insert(next_state);
+                        q.push_back(next_state);
+                    }
+                }
+            }
+        }
+
+        ans
+    }
+
+    /// epsilon closure of a set of states
+    pub fn epsilon_closure_of_set_of_states(&self, states: &HashSet<State>) -> HashSet<State> {
+        let mut ans = HashSet::new();
+        if states.len() == 0 {
+            return ans;
+        }
+
+        for &state in states.iter() {
+            ans.insert(state);
+        }
+
+        loop {
+            // println!("INSIDE EPS CLOSURE");
+            // println!("STATES = {:?}", states);
+            let mut new_states = HashSet::new();
+            for &state in ans.iter() {
+                let eps_closure = self.epsilon_closure(&state);
+                for &state in eps_closure.iter() {
+                    if !ans.contains(&state) {
+                        new_states.insert(state);
+                    }
+                }
+            }
+
+            if new_states.len() == 0 {
+                break;
+            }
+
+            for state in new_states {
+                ans.insert(state);
+            }
+        }
+
+        ans
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::dfa::DFA;
+
     use super::*;
 
     #[test]
@@ -191,5 +282,60 @@ mod tests {
         assert!(nfa_union.contains_transition(&3, &b, &4));
         assert!(nfa_union.contains_transition(&2, &epsilon, &5));
         assert!(nfa_union.contains_transition(&4, &epsilon, &5));
+    }
+
+    #[test]
+    fn check_epsilon_closure() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+
+        let nfa1 = NFA::from_symbol(&a, &symbol_table);
+        let nfa2 = NFA::from_symbol(&b, &symbol_table);
+
+        let nfa_union = nfa1.union(nfa2);
+        let epsilon_closure_check = nfa_union.epsilon_closure(&0);
+
+        assert!(epsilon_closure_check.len() == 3);
+        assert!(epsilon_closure_check.contains(&0));
+        assert!(epsilon_closure_check.contains(&1));
+        assert!(epsilon_closure_check.contains(&3));
+    }
+
+    #[test]
+    fn check_conversion_to_dfa() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+
+        let nfa = NFA::from_symbol(&a, &symbol_table);
+        let dfa = DFA::convert_to_dfa(nfa);
+
+        let result = dfa.run("a");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
+
+        let nfa1 = NFA::from_symbol(&a, &symbol_table);
+        let nfa2 = NFA::from_symbol(&b, &symbol_table);
+
+        let nfa_union = nfa1.union(nfa2);
+        let dfa = DFA::convert_to_dfa(nfa_union);
+
+        let result = dfa.run("a");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("b");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
     }
 }
