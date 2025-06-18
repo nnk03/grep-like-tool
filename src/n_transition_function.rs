@@ -2,7 +2,7 @@
 
 use crate::{
     custom_errors::{AutomatonError, NFAError},
-    globals::State,
+    state::State,
     symbol_table::Symbol,
     transition_function::BasicFunctionsForTransitions,
 };

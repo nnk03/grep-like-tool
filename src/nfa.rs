@@ -3,8 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
-    dfa::DFA,
-    globals::State,
+    state::{State, StateSet},
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, NTransitionFunction},
 };
@@ -26,6 +25,27 @@ pub struct NFA {
 }
 
 impl NFA {
+    /// getters
+    pub fn num_states(&self) -> usize {
+        self.num_states
+    }
+    pub fn symbol_table(&self) -> &SymbolTable {
+        &self.symbol_table
+    }
+    pub fn states(&self) -> &HashSet<State> {
+        &self.states
+    }
+    pub fn start_state(&self) -> State {
+        self.start_state
+    }
+    pub fn final_state(&self) -> State {
+        self.final_state
+    }
+
+    pub fn get_transition(&self, state: &State, symbol: &Symbol) -> Option<&HashSet<State>> {
+        self.transition_function.get_transition(state, symbol)
+    }
+
     /// creates an NFA which accepts a single symbol
     pub fn from_symbol(symbol: &Symbol, symbol_table: &SymbolTable) -> NFA {
         if *symbol == Symbol::Epsilon {
@@ -183,46 +203,47 @@ impl NFA {
         ans
     }
 
-    /// to get the subsets of a collection
-    fn powerset<T>(s: &[T]) -> Vec<Vec<T>>
-    where
-        T: Clone,
-    {
-        (0..2usize.pow(s.len() as u32))
-            .map(|i| {
-                s.iter()
-                    .enumerate()
-                    .filter(|&(t, _)| ((i >> t) & 1) == 1)
-                    .map(|(_, element)| element.clone())
-                    .collect()
-            })
-            .collect()
-    }
-
-    /// converting DFA to NFA
-    pub fn convert_to_dfa(&self) -> DFA {
-        let mut dfa = DFA::from_string("", &self.symbol_table.clone());
-        let nfa_states: Vec<_> = self.states.iter().map(|&state| state).collect();
-
-        let mut curr_state_num = 0;
-        let mut subset_to_num_map: HashMap<Vec<State>, State> = HashMap::new();
-        let mut num_to_subset_map: HashMap<State, Vec<State>> = HashMap::new();
-
-        for subset in NFA::powerset(&nfa_states) {
-            subset_to_num_map.insert(subset.clone(), curr_state_num);
-            num_to_subset_map.insert(curr_state_num, subset);
-
-            curr_state_num += 1;
+    /// epsilon closure of a set of states
+    pub fn epsilon_closure_of_set_of_states(&self, states: &HashSet<State>) -> HashSet<State> {
+        let mut ans = HashSet::new();
+        if states.len() == 0 {
+            return ans;
         }
-        // cleanup the dfa by removing unreachable states and numbering from 0..
-        dfa.cleanup();
 
-        dfa
+        for &state in states.iter() {
+            ans.insert(state);
+        }
+
+        loop {
+            // println!("INSIDE EPS CLOSURE");
+            // println!("STATES = {:?}", states);
+            let mut new_states = HashSet::new();
+            for &state in ans.iter() {
+                let eps_closure = self.epsilon_closure(&state);
+                for &state in eps_closure.iter() {
+                    if !ans.contains(&state) {
+                        new_states.insert(state);
+                    }
+                }
+            }
+
+            if new_states.len() == 0 {
+                break;
+            }
+
+            for state in new_states {
+                ans.insert(state);
+            }
+        }
+
+        ans
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::dfa::DFA;
+
     use super::*;
 
     #[test]
@@ -282,5 +303,39 @@ mod tests {
         assert!(epsilon_closure_check.contains(&0));
         assert!(epsilon_closure_check.contains(&1));
         assert!(epsilon_closure_check.contains(&3));
+    }
+
+    #[test]
+    fn check_conversion_to_dfa() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+
+        let nfa = NFA::from_symbol(&a, &symbol_table);
+        let dfa = DFA::convert_to_dfa(nfa);
+
+        let result = dfa.run("a");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
+
+        let nfa1 = NFA::from_symbol(&a, &symbol_table);
+        let nfa2 = NFA::from_symbol(&b, &symbol_table);
+
+        let nfa_union = nfa1.union(nfa2);
+        let dfa = DFA::convert_to_dfa(nfa_union);
+
+        let result = dfa.run("a");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("b");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
     }
 }

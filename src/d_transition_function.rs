@@ -4,7 +4,7 @@ use std::{collections::HashMap, ops::Index};
 
 use crate::{
     custom_errors::{AutomatonError, DFAError},
-    globals::State,
+    state::State,
     symbol_table::Symbol,
     transition_function::BasicFunctionsForTransitions,
 };

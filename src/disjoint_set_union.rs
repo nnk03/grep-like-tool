@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::globals::State;
+use crate::state::State;
 
 pub struct DSU {
     parent: Vec<State>,

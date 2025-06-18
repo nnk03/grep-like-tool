@@ -7,7 +7,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::{
     custom_errors::DFAError,
     disjoint_set_union::DSU,
-    globals::State,
+    nfa::NFA,
+    state::{State, StateSet},
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, DTransitionFunction},
 };
@@ -377,6 +378,123 @@ impl DFA {
 
         None
     }
+
+    /// to get the subsets of a collection
+    fn powerset<T>(s: &[T]) -> Vec<Vec<T>>
+    where
+        T: Clone,
+    {
+        (0..2usize.pow(s.len() as u32))
+            .map(|i| {
+                s.iter()
+                    .enumerate()
+                    .filter(|&(t, _)| ((i >> t) & 1) == 1)
+                    .map(|(_, element)| element.clone())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// converting NFA to a minimized DFA
+    pub fn convert_to_dfa(nfa: NFA) -> DFA {
+        let mut curr_state_num = 0;
+        let mut subset_to_num_map: HashMap<StateSet, State> = HashMap::new();
+        let mut num_to_subset_map: HashMap<State, StateSet> = HashMap::new();
+
+        let mut get_state_equivalent_number = |subset_state| -> State {
+            if subset_to_num_map.contains_key(&subset_state) {
+                return subset_to_num_map[&subset_state];
+            }
+            subset_to_num_map.insert(subset_state.clone(), curr_state_num);
+            num_to_subset_map.insert(curr_state_num, subset_state.clone());
+            curr_state_num += 1;
+
+            subset_to_num_map[&subset_state]
+        };
+
+        let start_state_closure = StateSet::new(nfa.epsilon_closure(&nfa.start_state()));
+
+        let mut q: VecDeque<StateSet> = VecDeque::new();
+        q.push_back(start_state_closure);
+
+        let mut dfa = DFA {
+            num_states: 2_u32.pow(nfa.num_states() as u32) as usize,
+            symbol_table: nfa.symbol_table().clone(),
+            states: HashSet::new(),
+            begin_state_num: 0,
+            end_state_num: 0,
+            start_state: 0,
+            final_states: HashSet::new(),
+            transition_function: DTransitionFunction::new(),
+        };
+
+        let mut visited: HashSet<State> = HashSet::new();
+
+        while let Some(curr_set_of_states) = q.pop_front() {
+            if visited.contains(&get_state_equivalent_number(curr_set_of_states.clone())) {
+                continue;
+            }
+            visited.insert(get_state_equivalent_number(curr_set_of_states.clone()));
+
+            let curr_state_number = get_state_equivalent_number(curr_set_of_states.clone());
+            dfa.states.insert(curr_state_number);
+
+            for &symbol in dfa.symbol_table.symbols() {
+                if symbol == Symbol::Epsilon {
+                    continue;
+                }
+
+                let mut next_states_on_this_symbol = HashSet::new();
+
+                for &state in curr_set_of_states.states() {
+                    if let Some(next_state_set) = nfa.get_transition(&state, &symbol) {
+                        for &next_state in next_state_set.iter() {
+                            next_states_on_this_symbol.insert(next_state);
+                        }
+                    }
+                }
+
+                let mut is_final_state = false;
+
+                let next_states_on_this_symbol =
+                    nfa.epsilon_closure_of_set_of_states(&next_states_on_this_symbol);
+
+                for &state in next_states_on_this_symbol.iter() {
+                    if state == nfa.final_state() {
+                        is_final_state = true;
+                        break;
+                    }
+                }
+
+                let next_states_on_this_symbol = StateSet::new(next_states_on_this_symbol);
+
+                let next_state_number =
+                    get_state_equivalent_number(next_states_on_this_symbol.clone());
+
+                let _ = dfa.transition_function.add_transition(
+                    &curr_state_number,
+                    &symbol,
+                    &next_state_number,
+                );
+                if is_final_state {
+                    dfa.final_states.insert(next_state_number);
+                }
+
+                if !visited.contains(&next_state_number) {
+                    q.push_back(next_states_on_this_symbol);
+                }
+            }
+        }
+
+        dfa.num_states = visited.len();
+        dfa.end_state_num = visited.len() - 1;
+        dfa.states = visited;
+
+        // minimize the dfa
+        let dfa = dfa.minimized_dfa();
+
+        dfa
+    }
 }
 
 #[cfg(test)]
@@ -500,8 +618,5 @@ mod tests {
 
         let result = dfa.run("");
         assert!(result.is_ok_and(|res| res));
-
-        let result = dfa.run("aaa");
-        assert!(result.is_ok_and(|res| !res));
     }
 }

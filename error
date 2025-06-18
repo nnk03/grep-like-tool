@@ -1,0 +1,26 @@
+   Compiling grep-like-tool v0.1.0 (/home/neeraj/Desktop/projects/rust/grep-like-tool)
+warning: unused import: `HashMap`
+ --> src/nfa.rs:3:24
+  |
+3 | use std::collections::{HashMap, HashSet, VecDeque};
+  |                        ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `StateSet`
+ --> src/nfa.rs:6:20
+  |
+6 |     state::{State, StateSet},
+  |                    ^^^^^^^^
+
+warning: unused variable: `dfa`
+   --> src/nfa.rs:319:13
+    |
+319 |         let dfa = DFA::convert_to_dfa(nfa);
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_dfa`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `grep-like-tool` (bin "grep-like-tool" test) generated 3 warnings (run `cargo fix --bin "grep-like-tool" --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/main.rs (target/debug/deps/grep_like_tool-d2c84a220dcb2d67)
