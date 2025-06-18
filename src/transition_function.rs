@@ -2,8 +2,8 @@
 
 use crate::custom_errors::AutomatonError;
 use crate::d_transition_function;
-use crate::globals::State;
 use crate::n_transition_function;
+use crate::state::State;
 use crate::symbol_table::Symbol;
 
 pub use d_transition_function::DTransitionFunction;

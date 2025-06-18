@@ -17,7 +17,7 @@ pub enum Symbol {
 }
 
 /// Struct to hold the symbols and their corresponding numbers
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SymbolTable {
     symbol_to_number: HashMap<Symbol, usize>,
     number_to_symbol: HashMap<usize, Symbol>,

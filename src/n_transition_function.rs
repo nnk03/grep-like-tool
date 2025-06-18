@@ -2,7 +2,7 @@
 
 use crate::{
     custom_errors::{AutomatonError, NFAError},
-    globals::State,
+    state::State,
     symbol_table::Symbol,
     transition_function::BasicFunctionsForTransitions,
 };
@@ -67,6 +67,42 @@ impl BasicFunctionsForTransitions for NTransitionFunction {
     }
 }
 
+impl NTransitionFunction {
+    /// takes in self and another NTransitionFunction and returns the combined transition table of the 2
+    pub fn combine_transition(mut self, other: &Self) -> Self {
+        for (&state, other_transitions) in other.f.iter() {
+            let existing_transitions = self.f.entry(state).or_insert(HashMap::new());
+
+            for (&symbol, next_states) in other_transitions.iter() {
+                let entry = existing_transitions.entry(symbol).or_insert(HashSet::new());
+                for &next_state in next_states.iter() {
+                    entry.insert(next_state);
+                }
+            }
+        }
+
+        self
+    }
+
+    /// to check if a transition is valid, on a state and symbol
+    pub fn is_valid_transition(&self, state: &State, symbol: &Symbol) -> bool {
+        self.f.contains_key(&state) && self.f[state].contains_key(symbol)
+    }
+
+    /// to check if a complete transition is valid according to this transition function
+    pub fn contains_transition(&self, state: &State, symbol: &Symbol, next_state: &State) -> bool {
+        self.is_valid_transition(state, symbol) && self.f[state][symbol].contains(next_state)
+    }
+
+    /// returns the set of next_states if exists
+    pub fn get_transition(&self, state: &State, symbol: &Symbol) -> Option<&HashSet<State>> {
+        if self.is_valid_transition(state, symbol) {
+            return Some(&self.f[state][symbol]);
+        }
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,5 +144,46 @@ mod tests {
         let result = nt.add_transition(&0, &Symbol::Character('a'), &1);
 
         assert!(result.is_err_and(|err| err.to_string().contains("Existing Transition")));
+    }
+
+    #[test]
+    fn check_adding_transitions_from_another_function() {
+        let mut nt1 = NTransitionFunction::new();
+        let _ = nt1
+            .add_transition(&0, &Symbol::Character('a'), &1)
+            .unwrap_or_else(|err| panic!("Error in adding transition : {}", err.to_string()));
+
+        let mut nt2 = NTransitionFunction::new();
+        let _ = nt2
+            .add_transition(&0, &Symbol::Character('b'), &1)
+            .unwrap_or_else(|err| panic!("Error in adding transition : {}", err.to_string()));
+
+        let mut nt3 = NTransitionFunction::new();
+        let _ = nt3
+            .add_transition(&1, &Symbol::Character('b'), &4)
+            .unwrap_or_else(|err| panic!("Error in adding transition : {}", err.to_string()));
+
+        let mut nt4 = NTransitionFunction::new();
+        let _ = nt4
+            .add_transition(&5, &Symbol::Character('d'), &6)
+            .unwrap_or_else(|err| panic!("Error in adding transition : {}", err.to_string()));
+
+        let mut nt5 = NTransitionFunction::new();
+        let _ = nt5
+            .add_transition(&0, &Symbol::Character('a'), &5)
+            .unwrap_or_else(|err| panic!("Error in adding transition : {}", err.to_string()));
+
+        let nt = nt1.combine_transition(&nt2);
+        let nt = nt.combine_transition(&nt3);
+        let nt = nt.combine_transition(&nt4);
+        let nt = nt.combine_transition(&nt5);
+
+        assert!(nt.contains_transition(&0, &Symbol::Character('a'), &1));
+        assert!(nt.contains_transition(&0, &Symbol::Character('a'), &5));
+        assert!(nt.contains_transition(&0, &Symbol::Character('b'), &1));
+
+        assert!(nt.contains_transition(&1, &Symbol::Character('b'), &4));
+
+        assert!(nt.contains_transition(&5, &Symbol::Character('d'), &6));
     }
 }
