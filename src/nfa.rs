@@ -335,6 +335,67 @@ impl NFA {
 
         nfa
     }
+
+    /// function to create NFA to accept Kleene star of a language
+    pub fn kleene_star(mut self) -> NFA {
+        let x = self.num_states();
+
+        let mut nfa = NFA {
+            num_states: x + 2,
+            symbol_table: self.symbol_table.clone(),
+            states: HashSet::new(),
+            begin_state_num: 0,
+            end_state_num: x + 1,
+            start_state: 0,
+            final_state: x + 1,
+            transition_function: NTransitionFunction::new(),
+        };
+        self.extend(1);
+
+        // insert start state
+        nfa.states.insert(0);
+        // insert final_state
+        nfa.states.insert(x + 1);
+
+        let start_state_of_first = self.start_state();
+        let final_state_of_first = self.final_state();
+
+        let union: HashSet<_> = nfa.states.union(&self.states).map(|&state| state).collect();
+        // set nfa.states to union
+        nfa.states = union;
+
+        // combine the transitions
+        let new_transition_function = self.transition_function.clone();
+        nfa.transition_function = new_transition_function;
+
+        // add extra transitions necessary for the concatenation function
+        let epsilon = Symbol::Epsilon;
+        let _ = nfa.transition_function.add_transition(
+            &nfa.start_state(),
+            &epsilon,
+            &start_state_of_first,
+        );
+
+        let _ = nfa.transition_function.add_transition(
+            &final_state_of_first,
+            &epsilon,
+            &nfa.final_state(),
+        );
+
+        let _ = nfa.transition_function.add_transition(
+            &nfa.final_state(),
+            &epsilon,
+            &nfa.start_state(),
+        );
+
+        let _ = nfa.transition_function.add_transition(
+            &nfa.start_state(),
+            &epsilon,
+            &nfa.final_state(),
+        );
+
+        nfa
+    }
 }
 
 #[cfg(test)]
@@ -482,6 +543,37 @@ mod tests {
         assert!(result.is_ok_and(|res| res));
 
         let result = dfa.run("aa");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_kleene_star() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let a = Symbol::Character('a');
+
+        let nfa = NFA::from_symbol(&a, &symbol_table);
+        let nfa_kleene = nfa.kleene_star();
+
+        let dfa = DFA::convert_to_dfa(nfa_kleene);
+
+        let mut check_string = String::new();
+
+        // check that dfa accepts epsilon string since its kleene star
+        let result = dfa.run(&check_string);
+        assert!(result.is_ok_and(|res| res));
+
+        // check that dfa accepts all strings of 'a' upto length 100
+        for _ in 0..100 {
+            check_string.push('a');
+
+            let result = dfa.run(&check_string);
+            assert!(result.is_ok_and(|res| res));
+        }
+
+        let result = dfa.run("ab");
         assert!(result.is_ok_and(|res| !res));
     }
 }
