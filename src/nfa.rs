@@ -558,6 +558,7 @@ mod tests {
         let nfa_kleene = nfa.kleene_star();
 
         let dfa = DFA::convert_to_dfa(nfa_kleene);
+        let dfa = dfa.minimized_dfa();
 
         let mut check_string = String::new();
 
@@ -574,6 +575,40 @@ mod tests {
         }
 
         let result = dfa.run("ab");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_sample_regular_expression() {
+        // check for (a + b)*c
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+        let c = Symbol::Character('c');
+
+        let nfa_a = NFA::from_symbol(&a, &symbol_table);
+        let nfa_b = NFA::from_symbol(&b, &symbol_table);
+        let nfa_c = NFA::from_symbol(&c, &symbol_table);
+
+        let nfa_a_plus_b = nfa_a.union(nfa_b);
+        let nfa_a_plus_b_kleene_star = nfa_a_plus_b.kleene_star();
+
+        let nfa = nfa_a_plus_b_kleene_star.concat(nfa_c);
+
+        let dfa = DFA::convert_to_dfa(nfa);
+        let dfa = dfa.minimized_dfa();
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abbaabc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abcabc");
         assert!(result.is_ok_and(|res| !res));
     }
 }
