@@ -529,6 +529,88 @@ impl DFA {
             }
         }
 
+        let dfa = dfa.minimized_dfa();
+        dfa
+    }
+
+    /// function for intersection of 2 DFAs
+    pub fn intersection(&self, other: DFA) -> DFA {
+        if self.symbol_table != other.symbol_table {
+            panic!("Symbol table of 2 NFAs are not the same");
+        }
+        let x = self.num_states();
+        let y = other.num_states();
+
+        let mut dfa = DFA {
+            num_states: x * y,
+            symbol_table: self.symbol_table.clone(),
+            states: HashSet::new(),
+            begin_state_num: 0,
+            end_state_num: x * y - 1,
+            start_state: 0,
+            final_states: HashSet::new(),
+            transition_function: DTransitionFunction::new(),
+        };
+
+        let mut curr_state_num: State = 0;
+        let mut pair_to_state_number: HashMap<(State, State), State> = HashMap::new();
+
+        pair_to_state_number.insert((self.start_state(), other.start_state()), curr_state_num);
+        curr_state_num += 1;
+
+        for first_state in self.begin_state_num()..=self.end_state_num() {
+            for second_state in other.begin_state_num()..=other.end_state_num() {
+                let pair = (first_state, second_state);
+
+                if !pair_to_state_number.contains_key(&pair) {
+                    pair_to_state_number.insert(pair, curr_state_num);
+                    curr_state_num += 1;
+                }
+
+                if self.final_states().contains(&first_state)
+                    && other.final_states().contains(&second_state)
+                {
+                    // if both are in final states of respective machines, add that to final state
+                    // of the resultant dfa
+                    dfa.final_states.insert(pair_to_state_number[&pair]);
+                }
+            }
+        }
+
+        for first_state in self.begin_state_num()..=self.end_state_num() {
+            for second_state in other.begin_state_num()..=other.end_state_num() {
+                let pair = (first_state, second_state);
+                let state = pair_to_state_number[&pair];
+
+                for symbol in dfa.symbol_table.symbols() {
+                    if *symbol == Symbol::Epsilon {
+                        continue;
+                    }
+
+                    // transition will be always valid since it is a DFA
+                    // but there was a test case in which this was invalid
+                    // rectified it with check if it is none
+                    // but need to check it once
+                    let next_state_pair = (
+                        self.get_transition(&first_state, symbol),
+                        other.get_transition(&second_state, symbol),
+                    );
+
+                    if next_state_pair.0.is_none() || next_state_pair.1.is_none() {
+                        continue;
+                    }
+                    let next_state_pair = (next_state_pair.0.unwrap(), next_state_pair.1.unwrap());
+
+                    let next_state = pair_to_state_number[&next_state_pair];
+
+                    let _ = dfa
+                        .transition_function
+                        .add_transition(&state, symbol, &next_state);
+                }
+            }
+        }
+
+        let dfa = dfa.minimized_dfa();
         dfa
     }
 }
@@ -672,5 +754,34 @@ mod tests {
 
         let result = dfa.run("abd");
         assert!(result.is_ok_and(|res| res));
+    }
+
+    #[test]
+    fn check_simple_intersection_of_dfa() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let dfa1 = DFA::from_string("a", &symbol_table);
+        let dfa2 = DFA::from_string("a", &symbol_table);
+        let dfa = dfa1.intersection(dfa2);
+
+        let result = dfa.run("a");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+
+        let dfa1 = DFA::from_string("a", &symbol_table);
+        let dfa2 = DFA::from_string("", &symbol_table);
+        let dfa = dfa1.intersection(dfa2);
+
+        let result = dfa.run("a");
+        assert!(result.is_ok_and(|res| !res));
+
+        let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
     }
 }
