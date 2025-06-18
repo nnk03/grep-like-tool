@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::{HashMap, HashSet};
 
 use crate::state::State;
@@ -19,6 +17,7 @@ impl DSU {
         dsu
     }
 
+    #[allow(dead_code)]
     /// function to return the number of disjoint sets
     pub fn len(&self) -> usize {
         let mut distinct_set_representatives = HashSet::new();

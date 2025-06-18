@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::{
     custom_errors::{AutomatonError, NFAError},
     state::State,
@@ -89,6 +87,7 @@ impl NTransitionFunction {
         self.f.contains_key(&state) && self.f[state].contains_key(symbol)
     }
 
+    #[allow(dead_code)]
     /// to check if a complete transition is valid according to this transition function
     pub fn contains_transition(&self, state: &State, symbol: &Symbol, next_state: &State) -> bool {
         self.is_valid_transition(state, symbol) && self.f[state][symbol].contains(next_state)

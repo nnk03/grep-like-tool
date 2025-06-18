@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
@@ -25,6 +23,7 @@ pub struct NFA {
     transition_function: NTransitionFunction,
 }
 
+#[allow(dead_code)]
 impl NFA {
     /// getters
     pub fn num_states(&self) -> usize {

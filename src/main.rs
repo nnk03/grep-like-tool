@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::{self, BufRead};
 
 mod custom_errors;
@@ -26,7 +24,7 @@ fn main() {
             panic!("No number of test cases given");
         })
         .unwrap_or_else(|err| {
-            panic!("Error in std input");
+            panic!("Error in std input, {}", err.to_string());
         })
         .parse::<usize>()
         .unwrap_or_else(|err| {
@@ -40,7 +38,7 @@ fn main() {
                 panic!("No number of test cases given");
             })
             .unwrap_or_else(|err| {
-                panic!("Error in std input");
+                panic!("Error in std input, {}", err.to_string());
             });
         let input_string = iter
             .next()
@@ -48,7 +46,7 @@ fn main() {
                 panic!("No number of test cases given");
             })
             .unwrap_or_else(|err| {
-                panic!("Error in std input");
+                panic!("Error in std input {}", err.to_string());
             });
 
         let dfa = parsing::create_dfa_from_reg_ex(&regex);

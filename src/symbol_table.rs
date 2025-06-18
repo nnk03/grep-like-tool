@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! This module contains the necessary functions for Symbol and SymbolTable
 
 use std::{
@@ -85,6 +84,7 @@ impl SymbolTable {
         self.add_symbol(Symbol::Character(ch));
     }
 
+    #[allow(dead_code)]
     /// returns the number of symbols present
     pub fn len(&self) -> usize {
         self.symbol_to_number.len()

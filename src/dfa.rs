@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! This module contains the necessary functions of DFA
 //!
 
@@ -31,6 +30,7 @@ pub struct DFA {
     transition_function: DTransitionFunction,
 }
 
+#[allow(dead_code)]
 /// getters
 impl DFA {
     pub fn num_states(&self) -> usize {
@@ -56,6 +56,7 @@ impl DFA {
     }
 }
 
+#[allow(dead_code)]
 impl DFA {
     /// create a DFA from a string
     pub fn from_string(s: &str, symbol_table: &SymbolTable) -> DFA {
@@ -517,6 +518,7 @@ impl DFA {
     }
 }
 
+#[allow(dead_code)]
 impl DFA {
     /// function for complement of a DFAs
     pub fn complement(&self) -> DFA {
