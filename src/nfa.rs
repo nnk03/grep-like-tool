@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
+    dfa::DFA,
     state::{State, StateSet},
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, NTransitionFunction},
@@ -239,6 +240,40 @@ impl NFA {
 
         ans
     }
+
+    /// convert a DFA to NFA
+    pub fn convert_dfa_to_nfa(dfa: DFA) -> NFA {
+        let mut nfa = NFA {
+            num_states: dfa.num_states() + 1,
+            symbol_table: dfa.symbol_table().clone(),
+            states: dfa.states().clone(),
+            begin_state_num: dfa.begin_state_num(),
+            end_state_num: dfa.end_state_num() + 1,
+            start_state: dfa.start_state(),
+            final_state: dfa.num_states(),
+            transition_function: NTransitionFunction::new(),
+        };
+        nfa.states.insert(dfa.end_state_num() + 1);
+        for curr_state in dfa.begin_state_num()..=dfa.end_state_num() {
+            for &symbol in dfa.symbol_table().symbols() {
+                if let Some(next_state) = dfa.get_transition(&curr_state, &symbol) {
+                    let _ =
+                        nfa.transition_function
+                            .add_transition(&curr_state, &symbol, &next_state);
+                }
+            }
+        }
+
+        for &final_state in dfa.final_state().iter() {
+            let _ = nfa.transition_function.add_transition(
+                &final_state,
+                &Symbol::Epsilon,
+                &nfa.final_state,
+            );
+        }
+
+        nfa
+    }
 }
 
 #[cfg(test)]
@@ -337,6 +372,25 @@ mod tests {
         assert!(result.is_ok_and(|res| res));
 
         let result = dfa.run("aaa");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_conversion_of_dfa_to_nfa() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+        symbol_table.add_character('c');
+        symbol_table.add_character('d');
+
+        let dfa = DFA::from_string("abc", &symbol_table);
+        let nfa = NFA::convert_dfa_to_nfa(dfa);
+        let dfa = DFA::convert_to_dfa(nfa);
+
+        let result = dfa.run("abc");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("abd");
         assert!(result.is_ok_and(|res| !res));
     }
 }
