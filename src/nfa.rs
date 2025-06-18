@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use crate::{
     dfa::DFA,
-    state::{State, StateSet},
+    state::State,
     symbol_table::{Symbol, SymbolTable},
     transition_function::{BasicFunctionsForTransitions, NTransitionFunction},
 };
@@ -106,62 +106,6 @@ impl NFA {
         self.transition_function.extend(increment);
     }
 
-    /// returns NFA accepting union of 2 NFAs
-    pub fn union(mut self, mut other: NFA) -> NFA {
-        if self.symbol_table != other.symbol_table {
-            panic!("Symbol table of 2 NFAs are not the same");
-        }
-        let x = self.num_states;
-        let y = other.num_states;
-
-        let mut nfa = NFA {
-            num_states: x + y + 2,
-            symbol_table: self.symbol_table.clone(),
-            states: HashSet::new(),
-            begin_state_num: 0,
-            end_state_num: x + y + 1,
-            start_state: 0,
-            final_state: x + y + 1,
-            transition_function: NTransitionFunction::new(),
-        };
-
-        self.extend(1);
-        other.extend(x + 1);
-
-        // add start and final state
-        nfa.states.insert(0);
-        nfa.states.insert(x + y + 1);
-
-        // add states of self
-        let union: HashSet<_> = nfa.states.union(&self.states).map(|&state| state).collect();
-        // add states of other
-        let union: HashSet<_> = union.union(&other.states).map(|&state| state).collect();
-
-        // set nfa.states to union
-        nfa.states = union;
-
-        // combine the transitions
-        let new_transition_function = self
-            .transition_function
-            .combine_transition(&other.transition_function);
-        nfa.transition_function = new_transition_function;
-
-        // add extra transitions necessary for the union function
-        let epsilon = Symbol::Epsilon;
-        let _ = nfa.transition_function.add_transition(&0, &epsilon, &1);
-        let _ = nfa
-            .transition_function
-            .add_transition(&0, &epsilon, &(x + 1));
-        let _ = nfa
-            .transition_function
-            .add_transition(&x, &epsilon, &(x + y + 1));
-        let _ = nfa
-            .transition_function
-            .add_transition(&(x + y), &epsilon, &(x + y + 1));
-
-        nfa
-    }
-
     /// to check if a transition is valid, on a state and symbol
     pub fn is_valid_transition(&self, state: &State, symbol: &Symbol) -> bool {
         self.transition_function.is_valid_transition(state, symbol)
@@ -217,8 +161,6 @@ impl NFA {
         }
 
         loop {
-            // println!("INSIDE EPS CLOSURE");
-            // println!("STATES = {:?}", states);
             let mut new_states = HashSet::new();
             for &state in ans.iter() {
                 let eps_closure = self.epsilon_closure(&state);
@@ -276,6 +218,125 @@ impl NFA {
     }
 }
 
+/// Functions to create an NFA from existing NFAs
+impl NFA {
+    /// returns NFA accepting union of 2 NFAs
+    pub fn union(mut self, mut other: NFA) -> NFA {
+        if self.symbol_table != other.symbol_table {
+            panic!("Symbol table of 2 NFAs are not the same");
+        }
+        let x = self.num_states();
+        let y = other.num_states();
+
+        let mut nfa = NFA {
+            num_states: x + y + 2,
+            symbol_table: self.symbol_table.clone(),
+            states: HashSet::new(),
+            begin_state_num: 0,
+            end_state_num: x + y + 1,
+            start_state: 0,
+            final_state: x + y + 1,
+            transition_function: NTransitionFunction::new(),
+        };
+
+        self.extend(1);
+        other.extend(x + 1);
+
+        // add start and final state
+        nfa.states.insert(0);
+        nfa.states.insert(x + y + 1);
+
+        // add states of self
+        let union: HashSet<_> = nfa.states.union(&self.states).map(|&state| state).collect();
+        // add states of other
+        let union: HashSet<_> = union.union(&other.states).map(|&state| state).collect();
+
+        // set nfa.states to union
+        nfa.states = union;
+
+        // combine the transitions
+        let new_transition_function = self
+            .transition_function
+            .combine_transition(&other.transition_function);
+        nfa.transition_function = new_transition_function;
+
+        // add extra transitions necessary for the union function
+        let epsilon = Symbol::Epsilon;
+        let _ = nfa.transition_function.add_transition(&0, &epsilon, &1);
+        let _ = nfa
+            .transition_function
+            .add_transition(&0, &epsilon, &(x + 1));
+        let _ = nfa
+            .transition_function
+            .add_transition(&x, &epsilon, &(x + y + 1));
+        let _ = nfa
+            .transition_function
+            .add_transition(&(x + y), &epsilon, &(x + y + 1));
+
+        nfa
+    }
+
+    /// function to create an NFA accepting concatenation of 2 languages
+    pub fn concat(mut self, mut other: NFA) -> NFA {
+        if self.symbol_table != other.symbol_table {
+            panic!("Symbol table of 2 NFAs are not the same");
+        }
+
+        let x = self.num_states();
+        let y = other.num_states();
+
+        let mut nfa = NFA {
+            num_states: x + y + 1,
+            symbol_table: self.symbol_table.clone(),
+            states: HashSet::new(),
+            begin_state_num: 0,
+            end_state_num: x + y,
+            start_state: 0,
+            final_state: other.final_state() + x + 1,
+            transition_function: NTransitionFunction::new(),
+        };
+        self.extend(1);
+        other.extend(x + 1);
+        // insert start state
+        nfa.states.insert(0);
+        // final_state is same as the final_state of the second NFA
+        // add states of self
+        let union: HashSet<_> = nfa.states.union(&self.states).map(|&state| state).collect();
+        // add states of other
+        let union: HashSet<_> = union.union(&other.states).map(|&state| state).collect();
+
+        let start_state_of_first = self.start_state();
+        let final_state_of_first = self.final_state();
+        let start_state_of_second = other.start_state();
+
+        // set nfa.states to union
+        nfa.states = union;
+
+        // combine the transitions
+        let new_transition_function = self
+            .transition_function
+            .combine_transition(&other.transition_function);
+        nfa.transition_function = new_transition_function;
+
+        // add extra transitions necessary for the concatenation function
+        let epsilon = Symbol::Epsilon;
+
+        let _ = nfa.transition_function.add_transition(
+            &nfa.start_state(),
+            &epsilon,
+            &start_state_of_first,
+        );
+
+        let _ = nfa.transition_function.add_transition(
+            &final_state_of_first,
+            &epsilon,
+            &start_state_of_second,
+        );
+
+        nfa
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::dfa::DFA;
@@ -318,6 +379,14 @@ mod tests {
         assert!(nfa_union.contains_transition(&3, &b, &4));
         assert!(nfa_union.contains_transition(&2, &epsilon, &5));
         assert!(nfa_union.contains_transition(&4, &epsilon, &5));
+
+        let dfa_union = DFA::convert_to_dfa(nfa_union);
+
+        let result = dfa_union.run("a");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa_union.run("b");
+        assert!(result.is_ok_and(|res| res));
     }
 
     #[test]
@@ -391,6 +460,28 @@ mod tests {
         assert!(result.is_ok_and(|res| res));
 
         let result = dfa.run("abd");
+        assert!(result.is_ok_and(|res| !res));
+    }
+
+    #[test]
+    fn check_concatenation() {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_character('a');
+        symbol_table.add_character('b');
+
+        let a = Symbol::Character('a');
+        let b = Symbol::Character('b');
+
+        let nfa1 = NFA::from_symbol(&a, &symbol_table);
+        let nfa2 = NFA::from_symbol(&b, &symbol_table);
+
+        let nfa_concat = nfa1.concat(nfa2);
+        let dfa = DFA::convert_to_dfa(nfa_concat);
+
+        let result = dfa.run("ab");
+        assert!(result.is_ok_and(|res| res));
+
+        let result = dfa.run("aa");
         assert!(result.is_ok_and(|res| !res));
     }
 }
