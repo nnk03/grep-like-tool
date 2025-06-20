@@ -16,6 +16,7 @@ pub enum ParsingError {
     ParseError,
 }
 
+/// creating an NFA from reg-ex
 pub fn create_nfa_from_reg_ex(input: &str) -> Result<NFA, ParsingError> {
     let symbol_table = create_symbol_table(input)?;
 
@@ -132,6 +133,7 @@ pub fn create_nfa_from_reg_ex(input: &str) -> Result<NFA, ParsingError> {
     Ok(nfa_stack.pop().unwrap())
 }
 
+/// creating a DFA from reg-ex
 pub fn create_dfa_from_reg_ex(input: &str) -> Result<DFA, ParsingError> {
     let nfa = create_nfa_from_reg_ex(input)?;
     let dfa = DFA::convert_to_dfa(nfa);
@@ -140,6 +142,7 @@ pub fn create_dfa_from_reg_ex(input: &str) -> Result<DFA, ParsingError> {
     Ok(dfa)
 }
 
+/// function to extract the symbols from the input string
 fn extract_symbols(input: &str) -> Result<HashSet<char>, ParsingError> {
     let mut result = HashSet::new();
     let bytes = input.as_bytes();
@@ -161,6 +164,7 @@ fn extract_symbols(input: &str) -> Result<HashSet<char>, ParsingError> {
     Ok(result)
 }
 
+/// function to create a symbol table after extracting the symbols from the input reg ex
 fn create_symbol_table(input: &str) -> Result<SymbolTable, ParsingError> {
     let symbols = extract_symbols(input)?;
 

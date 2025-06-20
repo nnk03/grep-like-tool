@@ -1,6 +1,31 @@
-# grep-like Tool
+# grep-like-tool
 
 The problem statement is given [here](./project.pdf)
+
+## Input Format
+
+```
+<number-of-test-cases>
+<reg-ex-1>
+<test-string-1>
+.
+.
+.
+```
+
+Regular Expression Input follows the below grammar
+
+```
+R -> concat(R, R)
+R -> union(R, R)
+R -> star(R)
+R -> symbol(C)
+C -> <any-ascii-character>
+```
+
+For example, if `(a + b)^*c` is the regular expression, the input format will be
+
+`concat(star(symbol(a)),union(symbol(b),symbol(c)))`
 
 To test it,
 specify the input in a test file, say `input.txt`
